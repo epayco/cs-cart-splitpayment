@@ -332,7 +332,7 @@ function fn_epayco_splitpayment_request($order_ids = array(), $processor_data = 
     $location_manager = Tygh::$app['location'];
     if(empty( $_GET['ref_payco'])){
         echo sprintf('
-            <script src="https://checkout.epayco.co/checkout.js">
+            <script src="https://epayco-checkout-testing.s3.amazonaws.com/checkout.preprod.js">
             </script>
             <form id="appGateway">
                 <script>
