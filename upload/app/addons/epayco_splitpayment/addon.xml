@@ -1,0 +1,84 @@
+<?xml version="1.0"?>
+<addon scheme="3.0" edition_type="VENDOR">
+    <id>epayco_splitpayment</id>
+    <version>1.0.0</version>
+    <priority>7100</priority>
+    <position>710</position>
+    <status>active</status>
+    <default_language>en</default_language>
+    <compatibility>
+        <dependencies>vendor_plans</dependencies>
+        <conflicts>epayco_commerce_platform</conflicts>
+        <core_version>
+            <min>4.5.1</min>
+        </core_version>
+        <core_edition>
+            MULTIVENDOR
+        </core_edition>
+    </compatibility>
+    <settings edition_type="ROOT,ULT:VENDOR">
+        <sections>
+            <section id="general">
+                <items>
+                    <item id="count_vendor_commission_on_basis">
+                        <type>hidden</type>
+                        <default_value>O</default_value>
+                    </item>
+                    <item id="epayco_splitpayment_settings">
+                        <type>template</type>
+                        <default_value>settings.tpl</default_value>
+                    </item>
+                    <item id="collect_payouts">
+                        <type>hidden</type>
+                        <default_value>N</default_value>
+                    </item>
+                    <item id="display_verification_status_on_storefront">
+                        <type>checkbox</type>
+                        <default_value>N</default_value>
+                    </item>
+                    <item id="epayco_verified_image">
+                        <type>template</type>
+                        <default_value>epayco_verified_image.tpl</default_value>
+                    </item>
+                    <item id="epayco_verified_image_width">
+                        <type>input</type>
+                        <default_value>60</default_value>
+                    </item>
+                    <item id="epayco_verified_image_height">
+                        <type>input</type>
+                        <default_value>60</default_value>
+                    </item>
+                    <item id="cron_key">
+                        <type>hidden</type>
+                        <default_value>5sPXboYa</default_value>
+                    </item>
+                    <item id="auto_url_epayco_verification">
+                        <name>AUTO url</name>
+                        <type>info</type>
+                        <handler>fn_sd_epayco_splitpayment_cs_info_url_auto_epayco_verification</handler>
+                    </item>
+                </items>
+            </section>
+        </sections>
+    </settings>
+    <queries>
+        <item>ALTER TABLE ?:companies
+            ADD epayco_email varchar(255) NOT NULL DEFAULT '',
+            ADD epayco_base_for_commission CHAR(1) NOT NULL DEFAULT '',
+            ADD epayco_verification varchar(16) NOT NULL DEFAULT 'not_checked',
+            ADD ppa_first_name varchar(255) NOT NULL DEFAULT '',
+            ADD ppa_last_name varchar(255) NOT NULL DEFAULT '';
+        </item>
+        <item for="uninstall">ALTER TABLE ?:companies
+            DROP epayco_email,
+            DROP epayco_base_for_commission,
+            DROP epayco_verification,
+            DROP ppa_first_name,
+            DROP ppa_last_name;
+        </item>
+    </queries>
+    <functions>
+        <item for="install">fn_pp_adaptive_payments_install</item>
+        <item for="uninstall">fn_pp_adaptive_payments_uninstall</item>
+    </functions>
+</addon>
