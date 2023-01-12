@@ -39,20 +39,6 @@
         </div>
     </div>
 
-    <div class="control-group">
-        <label class="control-label" for="p_test_request">TEST_REQUEST:</label>
-        <div class="controls">
-            <select name="payment_data[processor_params][p_test_request]" id="p_test_request">
-                {if $processor_params.p_test_request == 'STANDART'}
-                    <option value="STANDART" selected="selected">STANDART</option>
-                    <option value="ONEPAGE">ONEPAGE</option>
-                {else}
-                    <option value="STANDART">STANDART</option>
-                    <option value="ONEPAGE" selected="selected">ONEPAGE</option>
-                {/if}
-            </select>
-        </div>
-    </div>
 
     <div class="control-group">
         <label class="control-label">{__("test_live_mode")}:</label>
