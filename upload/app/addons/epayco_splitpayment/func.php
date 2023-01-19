@@ -322,11 +322,7 @@ function fn_epayco_splitpayment_request($order_ids = array(), $processor_data = 
         $test_method = 'false';
     }
 
-    if($processor_data['processor_params']['p_test_request'] == 'ONEPAGE'){
-        $external_method = 'false';
-    }else{
-        $external_method = 'true';
-    }
+    $external_method = 'true';
 
     /** @var \Tygh\Location\Manager $location_manager */
     $location_manager = Tygh::$app['location'];
@@ -393,7 +389,7 @@ function fn_epayco_splitpayment_request($order_ids = array(), $processor_data = 
                    window.location.href = urlRedirect;
                 });
          
-                setTimeout(openChekout, 2000)  
+                handler.open(data);  
                 </script>
                 
             </form>
@@ -404,7 +400,7 @@ function fn_epayco_splitpayment_request($order_ids = array(), $processor_data = 
             $processor_data['processor_params']['p_cust_id_cliente']
         );
     }
-
+    die();
 }
 
 /**

@@ -70,7 +70,7 @@ if (defined('PAYMENT_NOTIFICATION')) {
                 );
                 $isTestTransaction = $x_test_request == 'TRUE' ? "yes" : "no";
                 $isTestMode = $isTestTransaction == "yes" ? "true" : "false";
-                $isTestPluginMode = $processor_data['processor_params']['p_test_request']  == 'TRUE' ? "yes" : "no";
+                $isTestPluginMode = $processor_data['processor_params']['mode']  == 'test' ? "yes" : "no";
 
                 if(floatval($order_info['total']) == floatval($x_amount)){
                     if("yes" == $isTestPluginMode){
