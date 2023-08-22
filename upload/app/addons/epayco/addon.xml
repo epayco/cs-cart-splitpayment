@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<addon scheme="2.0" edition_type="ROOT,ULT:VENDOR">
+    <id>epayco</id>
+    <version>1.0.0</version>
+    <default_language>en</default_language>
+    <priority>999999</priority>
+    <status>active</status>
+    <name>ePayco</name>
+    <description>Reciba pagos online con tarjetas de credito, debito PSE, Efectivo y SafetyPay en menos de 24 Horas con multiples herramientas.</description>
+    <auto_install>MULTIVENDOR,ULTIMATE</auto_install>
+    <queries>
+        <item>ALTER TABLE ?:companies
+            ADD epayco_email varchar(255) NOT NULL DEFAULT '',
+            ADD epayco_base_for_commission CHAR(1) NOT NULL DEFAULT '',
+            ADD epayco_verification varchar(16) NOT NULL DEFAULT 'not_checked',
+            ADD ppa_first_name varchar(255) NOT NULL DEFAULT '',
+            ADD ppa_last_name varchar(255) NOT NULL DEFAULT '';
+        </item>
+        <item for="uninstall">ALTER TABLE ?:companies
+            DROP epayco_email,
+            DROP epayco_base_for_commission,
+            DROP epayco_verification,
+            DROP ppa_first_name,
+            DROP ppa_last_name;
+        </item>
+    </queries>
+    <functions>
+        <item for="install">fn_epayco_install_payment_processors</item>
+        <item for="uninstall">fn_epayco_uninstall_payment_processors</item>
+    </functions>
+</addon>
