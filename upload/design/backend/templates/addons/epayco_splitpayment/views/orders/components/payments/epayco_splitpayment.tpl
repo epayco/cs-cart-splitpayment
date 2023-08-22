@@ -1,1 +1,0 @@
-{* Do not delete! This file is required for correct order processing via the admin panel. *}
