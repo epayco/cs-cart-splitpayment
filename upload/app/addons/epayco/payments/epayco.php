@@ -195,7 +195,7 @@ if (defined('PAYMENT_NOTIFICATION')) {
                         var data = {
                                 name: "%s",
                                 description: "%s",
-                                extra2: "%s",
+                                invoice: "%s",
                                 currency: "%s",
                                 amount: "%s",
                                 tax: "%s",
