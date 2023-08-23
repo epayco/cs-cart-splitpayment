@@ -257,7 +257,7 @@ function fn_epayco_checkout_place_orders_pre_route(&$cart, $auth, $params)
             $p_description .= $v['product'];
 
             if($i != count($order_info['products'])) {
-                $p_description .= "; ";
+                $p_description .= ", ";
             }
         }
 
@@ -342,9 +342,9 @@ function fn_epayco_checkout_place_orders_pre_route(&$cart, $auth, $params)
             $total_admin_fee += $admin_fee;
             if ($vendor_fee) {
                 $post_data["id"] = $secondary_email;
-                $post_data["total"] =$order_info['total'];
-                $post_data["iva"] = $p_tax;
-                $post_data["base_iva"] = 0;
+                $post_data["total"] =round($order_info['total'],2);
+                $post_data["iva"] = round($p_tax,2);
+                $post_data["base_iva"] = round($order_info['total'],2)-round($p_tax,2);
                 $post_data["fee"] = number_format((floatval($order_data['total']) - fn_format_price_by_currency($vendor_fee, CART_PRIMARY_CURRENCY, $epayco_currency)),2);
                 array_push($receiversData, $post_data);
             }

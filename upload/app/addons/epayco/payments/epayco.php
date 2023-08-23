@@ -27,7 +27,7 @@ if (defined('PAYMENT_NOTIFICATION')) {
     }
     if($mode == 'response'){
         $ref_payco = $_GET['ref_payco'];
-        $url = 'https://secure.epayco.co/validation/v1/reference/'.$ref_payco;
+        $url = 'https://secure.epayco.io/validation/v1/reference/'.$ref_payco;
         $responseData =  @file_get_contents($url);
         $jsonData = @json_decode($responseData, true);
         $validationData = $jsonData['data'];
@@ -150,17 +150,13 @@ if (defined('PAYMENT_NOTIFICATION')) {
     /** @var \Tygh\Location\Manager $location_manager */
     $location_manager = Tygh::$app['location'];
 
-    if (YesNo::toBool($processor_data['processor_params']['p_type_checkout'])){
-        $type_checkout_mode = "true";
-    }else{
-        $type_checkout_mode = "false";
-    }
+    $type_checkout_mode = "true";
+    
 
     $data = fn_epayco_request(array($order_id), $processor_data);
     $data['billAddress'] = $location_manager->getLocationField($order_info, 'address', '', BILLING_ADDRESS_PREFIX);
     $data['payerPhone'] = $location_manager->getLocationField($order_info, 'phone', '', BILLING_ADDRESS_PREFIX);
 
-    var_dump($data);
     $epaycoButtonImage ="https://multimedia.epayco.co/epayco-landing/btns/Boton-epayco-color1.png";
 
     echo sprintf('
@@ -190,7 +186,7 @@ if (defined('PAYMENT_NOTIFICATION')) {
             </p> 
             <center>
                 <form id="appGateway">
-                <script src="https://checkout.epayco.co/checkout.js"></script>
+                <script src="https://epayco-checkout-testing.s3.amazonaws.com/checkout.preprod.js"></script>
                     <script>
                         var handler = ePayco.checkout.configure({
                             key: "%s",
@@ -214,10 +210,30 @@ if (defined('PAYMENT_NOTIFICATION')) {
                                 address_billing: "%s",
                                 mobilephone_billing: "%s",
                             }
+                        var js_array ='.json_encode($data['receivers']).';
+                        let split_receivers = [];
+                         for(var jsa of js_array){
+                            split_receivers.push({
+                                "id" :  jsa.id,
+                                "total": jsa.total,
+                                "iva" : jsa.iva,
+                                "base_iva": jsa.base_iva,
+                                "fee" : jsa.fee
+                            });
+                        }    
+                        data.split_app_id= "%s", //Id de la cuenta principal
+                        data.split_merchant_id= "%s", //Id de la cuenta principal y a nombre de quien quedara la transacción
+                        data.split_type= "01", // tipo de dispersión 01 -> fija ---- 02 -> porcentual
+                        data.split_primary_receiver= "%s", // Id de la cuenta principal - parámetro para recibir valor de la dispersión destinado
+                        data.split_primary_receiver_fee= "0", // Parámetro no a utilizar pero que debe de ir en cero
+                        data.splitpayment= "true", // Indicación de funcionalidad split
+                        data.split_rule= "multiple", // Parámetro para configuración de Split_receivers - debe de ir por defecto en multiple
+                        data.split_receivers= split_receivers
+                        
                     </script>
                     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
                     <script>
-                        console.log(data)
+                        handler.open(data)
                         window.onload = function() {
                             document.addEventListener("contextmenu", function(e){
                                 e.preventDefault();
@@ -237,7 +253,7 @@ if (defined('PAYMENT_NOTIFICATION')) {
             ',$data['key']
             ,$data['test'], $data['description'],$data['description'],$data['order_id'],$data['currency'],$data['total'], $data["tax"],
         $data["sub_total"], $order_info["b_country"], $type_checkout_mode, $data['p_url_response'], $data['p_url_confirmation'],"es",$data['order_id'],
-        $order_info['email'], $data['billAddress'], $data['payerPhone']
+        $order_info['email'], $data['billAddress'], $data['payerPhone'],$data['p_cust_id_cliente'],$data['p_cust_id_cliente'],$data['p_cust_id_cliente']
     );
     exit;
 }

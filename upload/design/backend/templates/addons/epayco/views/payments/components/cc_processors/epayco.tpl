@@ -30,12 +30,3 @@
         </select>
     </div>
 </div>
-<div class="control-group">
-    <label class="control-label" for="p_type_checkout">ONE PAGE:</label>
-    <div class="controls">
-        <select name="payment_data[processor_params][p_type_checkout]" id="p_type_checkout">
-            <option value="N" {if $processor_params.p_type_checkout === "YesNo::NO"|enum}selected="selected"{/if}>{__("STANDAR")}</option>
-            <option value="Y" {if $processor_params.p_type_checkout === "YesNo::YES"|enum}selected="selected"{/if}>{__("ONE PAGE")}</option>
-        </select>
-    </div>
-</div>
