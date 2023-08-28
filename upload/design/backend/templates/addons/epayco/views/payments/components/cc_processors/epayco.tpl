@@ -25,8 +25,8 @@
     <label class="control-label" for="p_test_request">TEST_REQUEST:</label>
     <div class="controls">
         <select name="payment_data[processor_params][p_test_request]" id="p_test_request">
-            <option value="N" {if $processor_params.p_test_request === "YesNo::NO"|enum}selected="selected"{/if}>{__("prueba")}</option>
-            <option value="Y" {if $processor_params.p_test_request === "YesNo::YES"|enum}selected="selected"{/if}>{__("produccion")}</option>
+            <option value="N" {if $processor_params.p_test_request === "YesNo::NO"|enum}selected="selected"{/if}>{__("producción")}</option>
+            <option value="Y" {if $processor_params.p_test_request === "YesNo::YES"|enum}selected="selected"{/if}>{__("prueba")}</option>
         </select>
     </div>
 </div>
