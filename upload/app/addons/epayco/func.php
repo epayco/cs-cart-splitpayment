@@ -225,18 +225,103 @@ function fn_epayco_checkout_place_orders_pre_route(&$cart, $auth, $params)
         exit;
     }
 }
-    function fn_epayco_request($order_ids = array(), $processor_data = array(), $params = array())
-    {
-        $order_ids = array_diff($order_ids, array(''));
+function fn_epayco_request($order_ids = array(), $processor_data = array(), $params = array())
+{
+    $order_ids = array_diff($order_ids, array(''));
 
-        $post_data = fn_epayco_build_post($order_ids, $processor_data);
+    $post_data = fn_epayco_build_post($order_ids, $processor_data);
 
-        $response = null;
+    $response = null;
 
-        parse_str($response, $pp_response);
+    parse_str($response, $pp_response);
 
-        $order_id = fn_epayco_get_parent_order_id($order_ids);
+    $order_id = fn_epayco_get_parent_order_id($order_ids);
 
+    $order_info = fn_get_order_info($order_id);
+    $p_tax = 0;
+    $indice =array_keys($order_info["taxes"]);
+    if($order_info["taxes"][$indice[0]]["tax_subtotal"] != 0) {
+        $p_tax = $order_info["taxes"][$indice[0]]["tax_subtotal"];
+    }
+
+    $p_amount_base = 0;
+    if($p_tax != 0) {
+        $p_amount_base = $order_info['total'] - $p_tax;
+    }
+
+
+    $i = 0;
+    $p_description = "";
+    foreach ($order_info['products'] as $k => $v) {
+        $i++;
+        $p_description .= $v['product'];
+
+        if($i != count($order_info['products'])) {
+            $p_description .= ", ";
+        }
+    }
+
+    $p_url_response = fn_url("payment_notification.response?payment=epayco&order_id=$order_id", AREA, 'current');
+    $p_url_confirmation = fn_url("payment_notification.confirmation?payment=epayco&order_id=$order_id", AREA, 'current');
+
+    if (YesNo::toBool($processor_data['processor_params']['p_test_request'])){
+        $test_method = 'true';
+    }else{
+        $test_method = 'false';
+    }
+
+    return [
+        'key' => $processor_data['processor_params']['p_public_key'],
+        'test' =>$test_method,
+        'description' => $p_description,
+        'order_id' => $order_id,
+        'currency' => $order_info['secondary_currency'],
+        'total' => $order_info['total'],
+        'tax' => $p_tax,
+        'sub_total' => $p_amount_base,
+        'p_url_response' => $p_url_response,
+        'p_url_confirmation' => $p_url_confirmation,
+        'p_cust_id_cliente'=>$processor_data['processor_params']['p_cust_id_cliente'],
+        'receivers'=>$post_data
+    ];
+}
+
+function fn_epayco_build_post($order_ids, $processor_data)
+{
+
+    $ip = fn_get_ip();
+    $epayco_currency = $processor_data['processor_params']['currency'];
+
+    if ($processor_data['processor_params']['user_currency'] == 'Y') {
+        $epayco_currency = CART_SECONDARY_CURRENCY;
+    }
+
+    $collect_payouts = Registry::get('addons.epayco.collect_payouts') == 'Y';
+
+    if (!is_array($order_ids)) {
+        $order_ids = array($order_ids);
+    }
+    $old_orders = $order_ids;
+    $parent_order_id = fn_epayco_get_parent_order_id($order_ids);
+    $str_order_ids = implode(',', $order_ids);
+    if(is_countable($parent_order_id) && count($parent_order_id)>0 ){
+        $order_ids = db_get_fields("SELECT order_id FROM ?:orders WHERE parent_order_id = ?i", $parent_order_id);
+    }else{
+        if(isset($parent_order_id)){
+            $order_ids = db_get_fields("SELECT order_id FROM ?:orders WHERE parent_order_id = ?i", $parent_order_id);
+        }
+    }
+    if(empty($order_ids)){
+        $order_ids = $old_orders;
+    }
+    $primary_email = $processor_data['processor_params']['primary_email'];
+
+    $post_data = array();
+
+    $order_index = 0;
+    $total_admin_fee = 0;
+    $receiversData = [];
+    foreach ($order_ids as $order_id) {
         $order_info = fn_get_order_info($order_id);
         $p_tax = 0;
         $indice =array_keys($order_info["taxes"]);
@@ -248,181 +333,99 @@ function fn_epayco_checkout_place_orders_pre_route(&$cart, $auth, $params)
         if($p_tax != 0) {
             $p_amount_base = $order_info['total'] - $p_tax;
         }
-
-
-        $i = 0;
-        $p_description = "";
-        foreach ($order_info['products'] as $k => $v) {
-            $i++;
-            $p_description .= $v['product'];
-
-            if($i != count($order_info['products'])) {
-                $p_description .= ", ";
-            }
+        $order_data = db_get_row("SELECT total, subtotal, company_id FROM ?:orders WHERE ?:orders.order_id = ?i", $order_id);
+        $secondaries_email = db_get_row("SELECT ppa_first_name FROM ?:companies WHERE company_id = ?i", $order_data['company_id']);
+        $secondary_email = !empty($secondaries_email['ppa_first_name']) ? $secondaries_email['ppa_first_name'] : $primary_email ;
+        $order_data['order_id'] = $order_id;
+        $base_iva = round($order_info['total'],2)-round($p_tax,2);
+        $vendor_fee = fn_epayco_calc_admin_fee($order_data,$base_iva);
+        if ($vendor_fee) {
+            $post_data["id"] = $secondary_email;
+            $post_data["total"] =round($order_info['total'],2);
+            $post_data["iva"] = round($p_tax,2);
+            $post_data["base_iva"] = round($base_iva,2);
+            $post_data["fee"] = number_format(fn_format_price_by_currency($vendor_fee, CART_PRIMARY_CURRENCY, $epayco_currency),2);
+            array_push($receiversData, $post_data);
         }
-
-        $p_url_response = fn_url("payment_notification.response?payment=epayco&order_id=$order_id", AREA, 'current');
-        $p_url_confirmation = fn_url("payment_notification.confirmation?payment=epayco&order_id=$order_id", AREA, 'current');
-
-        if (YesNo::toBool($processor_data['processor_params']['p_test_request'])){
-            $test_method = 'true';
-        }else{
-            $test_method = 'false';
-        }
-
-        return [
-            'key' => $processor_data['processor_params']['p_public_key'],
-            'test' =>$test_method,
-            'description' => $p_description,
-            'order_id' => $order_id,
-            'currency' => $order_info['secondary_currency'],
-            'total' => $order_info['total'],
-            'tax' => $p_tax,
-            'sub_total' => $p_amount_base,
-            'p_url_response' => $p_url_response,
-            'p_url_confirmation' => $p_url_confirmation,
-            'p_cust_id_cliente'=>$processor_data['processor_params']['p_cust_id_cliente'],
-            'receivers'=>$post_data
-        ];
     }
+    return $receiversData;
+}
 
-    function fn_epayco_build_post($order_ids, $processor_data)
-    {
+function fn_epayco_get_parent_order_id($order_ids)
+{
+    static $parent_order_id;
 
-        $ip = fn_get_ip();
-        $epayco_currency = $processor_data['processor_params']['currency'];
-
-        if ($processor_data['processor_params']['user_currency'] == 'Y') {
-            $epayco_currency = CART_SECONDARY_CURRENCY;
-        }
-
-        $collect_payouts = Registry::get('addons.epayco.collect_payouts') == 'Y';
-
-        if (!is_array($order_ids)) {
-            $order_ids = array($order_ids);
-        }
-        $old_orders = $order_ids;
-        $parent_order_id = fn_epayco_get_parent_order_id($order_ids);
-        $str_order_ids = implode(',', $order_ids);
-        if(is_countable($parent_order_id) && count($parent_order_id)>0 ){
-            $order_ids = db_get_fields("SELECT order_id FROM ?:orders WHERE parent_order_id = ?i", $parent_order_id);
-        }else{
-            if(isset($parent_order_id)){
-                $order_ids = db_get_fields("SELECT order_id FROM ?:orders WHERE parent_order_id = ?i", $parent_order_id);
-            }
-        }
-        if(empty($order_ids)){
-            $order_ids = $old_orders;
-        }
-        $primary_email = $processor_data['processor_params']['primary_email'];
-
-        $post_data = array();
-
-        $order_index = 0;
-        $total_admin_fee = 0;
-        $receiversData = [];
-        foreach ($order_ids as $order_id) {
-            $order_info = fn_get_order_info($order_id);
-            $p_tax = 0;
-            $indice =array_keys($order_info["taxes"]);
-            if($order_info["taxes"][$indice[0]]["tax_subtotal"] != 0) {
-                $p_tax = $order_info["taxes"][$indice[0]]["tax_subtotal"];
-            }
-
-            $p_amount_base = 0;
-            if($p_tax != 0) {
-                $p_amount_base = $order_info['total'] - $p_tax;
-            }
-            $order_data = db_get_row("SELECT total, subtotal, company_id FROM ?:orders WHERE ?:orders.order_id = ?i", $order_id);
-            $secondaries_email = db_get_row("SELECT ppa_first_name FROM ?:companies WHERE company_id = ?i", $order_data['company_id']);
-            $secondary_email = !empty($secondaries_email['ppa_first_name']) ? $secondaries_email['ppa_first_name'] : $primary_email ;
-            $order_data['order_id'] = $order_id;
-            $admin_fee = fn_epayco_calc_admin_fee($order_data);
-            $vendor_fee = $order_data['total'] - $admin_fee;
-            $total_admin_fee += $admin_fee;
-            if ($vendor_fee) {
-                $post_data["id"] = $secondary_email;
-                $post_data["total"] =round($order_info['total'],2);
-                $post_data["iva"] = round($p_tax,2);
-                $post_data["base_iva"] = round($order_info['total'],2)-round($p_tax,2);
-                $post_data["fee"] = number_format((floatval($order_data['total']) - fn_format_price_by_currency($vendor_fee, CART_PRIMARY_CURRENCY, $epayco_currency)),2);
-                array_push($receiversData, $post_data);
-            }
-        }
-        return $receiversData;
-    }
-
-    function fn_epayco_get_parent_order_id($order_ids)
-    {
-        static $parent_order_id;
-
-        if (!isset($parent_order_id)) {
-            if (is_array($order_ids)) {
-                $order_id = reset($order_ids);
-            } else {
-                $order_id = $order_ids;
-            }
-            $parent_order_id = db_get_field("SELECT parent_order_id FROM ?:orders WHERE order_id = ?i", $order_id);
-
-            if (empty($parent_order_id)) {
-                $parent_order_id = $order_id;
-            }
-        }
-
-        return $parent_order_id;
-    }
-
-
-    function fn_epayco_calc_admin_fee($order_data)
-    {
-        if (fn_epayco_get_company_base_for_commission($order_data['company_id']) == 'O') {
-            $total_to_fee = $order_data['total'];
+    if (!isset($parent_order_id)) {
+        if (is_array($order_ids)) {
+            $order_id = reset($order_ids);
         } else {
-            $total_to_fee = $order_data['subtotal'];
+            $order_id = $order_ids;
         }
+        $parent_order_id = db_get_field("SELECT parent_order_id FROM ?:orders WHERE order_id = ?i", $order_id);
 
-        $commission = db_get_row(
-            'SELECT commission_amount, commission, commission_type'
-            . ' FROM ?:vendor_payouts'
-            . ' WHERE company_id = ?i'
-            . ' AND order_id = ?i', $order_data['company_id'], $order_data['order_id']
-        );
-        $admin_fee = isset($commission['commission_amount']) ? $commission['commission_amount'] : 0;
+        if (empty($parent_order_id)) {
+            $parent_order_id = $order_id;
+        }
+    }
 
-        // hold back vendor payouts
-        if (Registry::get('addons.epayco.collect_payouts') == 'Y') {
-            $vendor_payouts = VendorPayouts::instance(array('vendor' => $order_data['company_id']));
-            $pending_payouts = $vendor_payouts->getSimple(array(
-                'payout_type' => VendorPayoutTypes::PAYOUT,
-                'approval_status' => VendorPayoutApprovalStatuses::PENDING
-            ));
-            list($balance, ) = $vendor_payouts->getBalance();
-            if ($pending_payouts) {
-                if ($balance < 0) {
-                    $admin_fee += abs($balance);
-                } else {
-                    $admin_fee += abs(array_sum(array_column($pending_payouts, 'payout_amount')));
-                }
+    return $parent_order_id;
+}
+
+
+function fn_epayco_calc_admin_fee($order_data,$base_iva)
+{
+    if (fn_epayco_get_company_base_for_commission($order_data['company_id']) == 'O') {
+        $total_to_fee = $order_data['total'];
+    } else {
+        $total_to_fee = $order_data['subtotal'];
+    }
+
+    $commission = db_get_row(
+        'SELECT commission_amount, commission, commission_type'
+        . ' FROM ?:vendor_payouts'
+        . ' WHERE company_id = ?i'
+        . ' AND order_id = ?i', $order_data['company_id'], $order_data['order_id']
+    );
+    $admin_fee = isset($commission['commission_amount']) ? $commission['commission_amount'] : 0;
+    if( isset($commission['commission']) && floatval($commission['commission'])>0.0) {
+        $admin_fee = (($base_iva*$commission['commission'])/100);
+    }else{
+        $admin_fee = $order_data['total'] - !empty($admin_fee) ? $admin_fee : 0;
+    }
+    // hold back vendor payouts
+    if (Registry::get('addons.epayco.collect_payouts') == 'Y') {
+        $vendor_payouts = VendorPayouts::instance(array('vendor' => $order_data['company_id']));
+        $pending_payouts = $vendor_payouts->getSimple(array(
+            'payout_type' => VendorPayoutTypes::PAYOUT,
+            'approval_status' => VendorPayoutApprovalStatuses::PENDING
+        ));
+        list($balance, ) = $vendor_payouts->getBalance();
+        if ($pending_payouts) {
+            if ($balance < 0) {
+                $admin_fee += abs($balance);
+            } else {
+                $admin_fee += abs(array_sum(array_column($pending_payouts, 'payout_amount')));
             }
         }
-
-        if ($admin_fee > $total_to_fee) {
-            $admin_fee = $total_to_fee;
-        }
-
-        return !empty($admin_fee) ? $admin_fee : 0;
     }
 
-    function fn_epayco_get_company_base_for_commission($company_id)
-    {
-        $base_for_commission = db_get_field("SELECT epayco_base_for_commission FROM ?:companies WHERE company_id = ?i", $company_id);
-
-        if (empty($base_for_commission)) {
-            $base_for_commission = Registry::get('addons.epayco.count_vendor_commission_on_basis');
-        }
-
-        return $base_for_commission;
+    if ($admin_fee > $total_to_fee) {
+        $admin_fee = $total_to_fee;
     }
+
+    return $admin_fee;
+}
+
+function fn_epayco_get_company_base_for_commission($company_id)
+{
+    $base_for_commission = db_get_field("SELECT epayco_base_for_commission FROM ?:companies WHERE company_id = ?i", $company_id);
+
+    if (empty($base_for_commission)) {
+        $base_for_commission = Registry::get('addons.epayco.count_vendor_commission_on_basis');
+    }
+
+    return $base_for_commission;
+}
 
 
 
