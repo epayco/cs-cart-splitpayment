@@ -27,7 +27,7 @@ if (defined('PAYMENT_NOTIFICATION')) {
     }
     if($mode == 'response'){
         $ref_payco = $_GET['ref_payco'];
-        $url = 'https://secure.epayco.io/validation/v1/reference/'.$ref_payco;
+        $url = 'https://secure.epayco.co/validation/v1/reference/'.$ref_payco;
         $responseData =  @file_get_contents($url);
         $jsonData = @json_decode($responseData, true);
         $validationData = $jsonData['data'];
@@ -186,7 +186,7 @@ if (defined('PAYMENT_NOTIFICATION')) {
             </p> 
             <center>
                 <form id="appGateway">
-                <script src="https://epayco-checkout-testing.s3.amazonaws.com/checkout.preprod.js"></script>
+                <script src="https://checkout.epayco.co/checkout.js"></script>
                     <script>
                         var handler = ePayco.checkout.configure({
                             key: "%s",
@@ -229,11 +229,11 @@ if (defined('PAYMENT_NOTIFICATION')) {
                         data.splitpayment= "true", // Indicación de funcionalidad split
                         data.split_rule= "multiple", // Parámetro para configuración de Split_receivers - debe de ir por defecto en multiple
                         data.split_receivers= split_receivers
-                        
+                        handler.open(data)
                     </script>
                     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
                     <script>
-                        handler.open(data)
+                        
                         window.onload = function() {
                             document.addEventListener("contextmenu", function(e){
                                 e.preventDefault();

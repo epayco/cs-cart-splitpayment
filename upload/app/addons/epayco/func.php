@@ -251,16 +251,13 @@ function fn_epayco_request($order_ids = array(), $processor_data = array(), $par
 
 
     $i = 0;
-    $p_description = "";
     foreach ($order_info['products'] as $k => $v) {
         $i++;
-        $p_description .= $v['product'];
 
-        if($i != count($order_info['products'])) {
-            $p_description .= ", ";
-        }
+        $p_description = str_replace('_', ' ', string_sanitize($v['product']));
+        $descripcionParts[] = $p_description;
     }
-
+    $p_description = implode(' - ', $descripcionParts);
     $p_url_response = fn_url("payment_notification.response?payment=epayco&order_id=$order_id", AREA, 'current');
     $p_url_confirmation = fn_url("payment_notification.confirmation?payment=epayco&order_id=$order_id", AREA, 'current');
 
@@ -339,12 +336,20 @@ function fn_epayco_build_post($order_ids, $processor_data)
         $order_data['order_id'] = $order_id;
         $base_iva = round($order_info['total'],2)-round($p_tax,2);
         $vendor_fee = fn_epayco_calc_admin_fee($order_data,$base_iva);
+       if(is_null($secondary_email)){
+              $post_data_fee=0; 
+              $post_data_id=$processor_data['processor_params']['p_cust_id_cliente'];
+        }else{
+            $post_data_fee=number_format(fn_format_price_by_currency($vendor_fee, CART_PRIMARY_CURRENCY, $epayco_currency),2);
+            $post_data_id = $secondary_email;
+        }
         if ($vendor_fee) {
-            $post_data["id"] = $secondary_email;
+            $post_data["id"] = $post_data_id;
             $post_data["total"] =round($order_info['total'],2);
             $post_data["iva"] = round($p_tax,2);
             $post_data["base_iva"] = round($base_iva,2);
-            $post_data["fee"] = number_format(fn_format_price_by_currency($vendor_fee, CART_PRIMARY_CURRENCY, $epayco_currency),2);
+             
+            $post_data["fee"] = $post_data_fee;
             array_push($receiversData, $post_data);
         }
     }
@@ -381,14 +386,15 @@ function fn_epayco_calc_admin_fee($order_data,$base_iva)
     }
 
     $commission = db_get_row(
-        'SELECT commission_amount, commission, commission_type'
-        . ' FROM ?:vendor_payouts'
+        "SELECT c.commission_amount, c.commission, c.commission_type, p.fixed_commission"
+        . " FROM ?:vendor_payouts as c"
+        . " LEFT JOIN ?:vendor_plans as p ON c.plan_id = p.plan_id"
         . ' WHERE company_id = ?i'
         . ' AND order_id = ?i', $order_data['company_id'], $order_data['order_id']
     );
     $admin_fee = isset($commission['commission_amount']) ? $commission['commission_amount'] : 0;
     if( isset($commission['commission']) && floatval($commission['commission'])>0.0) {
-        $admin_fee = (($base_iva*$commission['commission'])/100);
+        $admin_fee = (($base_iva*$commission['commission'])/100)+floatval($commission['fixed_commission']);
     }else{
         $admin_fee = $order_data['total'] - !empty($admin_fee) ? $admin_fee : 0;
     }
@@ -428,4 +434,11 @@ function fn_epayco_get_company_base_for_commission($company_id)
 }
 
 
+function string_sanitize($string, $force_lowercase = true, $anal = false) {
 
+    $strip = array("~", "`", "!", "@", "#", "$", "%", "^", "&", "*", "(", ")", "_", "=", "+", "[", "{", "]","}", "\\", "|", ";", ":", "\"", "'", "&#8216;", "&#8217;", "&#8220;", "&#8221;", "&#8211;", "&#8212;","â€”", "â€“", ",", "<", ".", ">", "/", "?");
+    $clean = trim(str_replace($strip, "", strip_tags($string)));
+    $clean = preg_replace('/\s+/', "_", $clean);
+    $clean = ($anal) ? preg_replace("/[^a-zA-Z0-9]/", "", $clean) : $clean ;
+    return $clean;
+}
