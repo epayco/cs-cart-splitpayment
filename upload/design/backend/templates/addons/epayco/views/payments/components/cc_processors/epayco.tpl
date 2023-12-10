@@ -15,6 +15,14 @@
     </div>
 </div>
 <div class="control-group">
+    <label class="control-label" for="p_private_key">PRIVATE_KEY:</label>
+    <div class="controls">
+        <input type="text" name="payment_data[processor_params][p_private_key]" 
+            id="p_private_key"
+            value="{$processor_params.p_private_key}"/>
+    </div>
+</div>
+<div class="control-group">
     <label class="control-label" for="p_key">P_KEY:</label>
     <div class="controls">
         <input type="text" name="payment_data[processor_params][p_key]" id="p_key" 
