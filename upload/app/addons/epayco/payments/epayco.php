@@ -193,47 +193,101 @@ if (defined('PAYMENT_NOTIFICATION')) {
                             test: "%s"
                         });
                         var data = {
-                                name: "%s",
-                                description: "%s",
-                                invoice: "%s",
-                                currency: "%s",
-                                amount: "%s",
-                                tax: "%s",
-                                tax_base: "%s",
-                                country: "%s",
-                                external: "%s",
-                                response: "%s",
-                                confirmation: "%s",
-                                lang: "%s",
-                                extra1: "%s",
-                                email_billing: "%s",
-                                address_billing: "%s",
-                                mobilephone_billing: "%s",
+                            name: "%s",
+                            description: "%s",
+                            invoice: "%s",
+                            currency: "%s",
+                            amount: "%s".toString(),
+                            tax: "%s".toString(),
+                            tax_base: "%s".toString(),
+                            taxIco: "0",
+                            country: "%s",
+                            external: "%s",
+                            response: "%s",
+                            confirmation: "%s",
+                            lang: "%s",
+                            extra1: "%s",
+                            email_billing: "%s",
+                            address_billing: "%s",
+                            mobilephone_billing: "%s",
+                            autoclick: "true",
+                            test: "%s".toString()
                             }
                         var js_array ='.json_encode($data['receivers']).';
                         let split_receivers = [];
+                        var isSplit = false;
                          for(var jsa of js_array){
-                            split_receivers.push({
-                                "id" :  jsa.id,
-                                "total": jsa.total,
-                                "iva" : jsa.iva,
-                                "base_iva": jsa.base_iva,
-                                "fee" : jsa.fee
-                            });
+                            if(jsa.id != null){
+                                split_receivers.push({
+                                    "id" :  jsa.id,
+                                    "total": jsa.total,
+                                    "iva" : jsa.iva,
+                                    "base_iva": jsa.base_iva,
+                                    "fee" : jsa.fee
+                                });
+                            }
                         }    
-                        data.split_app_id= "%s", //Id de la cuenta principal
-                        data.split_merchant_id= "%s", //Id de la cuenta principal y a nombre de quien quedara la transacción
-                        data.split_type= "01", // tipo de dispersión 01 -> fija ---- 02 -> porcentual
-                        data.split_primary_receiver= "%s", // Id de la cuenta principal - parámetro para recibir valor de la dispersión destinado
-                        data.split_primary_receiver_fee= "0", // Parámetro no a utilizar pero que debe de ir en cero
-                        data.splitpayment= "true", // Indicación de funcionalidad split
-                        data.split_rule= "multiple", // Parámetro para configuración de Split_receivers - debe de ir por defecto en multiple
-                        data.split_receivers= split_receivers
-                        
+                        if(split_receivers.length != 0){
+                            data.split_app_id= "%s", //Id de la cuenta principal
+                            data.split_merchant_id= "%s", //Id de la cuenta principal y a nombre de quien quedara la transacción
+                            data.split_type= "01", // tipo de dispersión 01 -> fija ---- 02 -> porcentual
+                            data.split_primary_receiver= "%s", // Id de la cuenta principal - parámetro para recibir valor de la dispersión destinado
+                            data.split_primary_receiver_fee= "0", // Parámetro no a utilizar pero que debe de ir en cero
+                            data.splitpayment= "true", // Indicación de funcionalidad split
+                            data.split_rule= "multiple", // Parámetro para configuración de Split_receivers - debe de ir por defecto en multiple
+                            data.split_receivers= split_receivers
+                        }
+                        data.ip = "%s";
+                        const apiKey = "%s";
+                        const privateKey = "%s";
+                        var openChekout = function () {
+                            if(localStorage.getItem("invoicePayment") == null){
+                                localStorage.setItem("invoicePayment", data.invoice);
+                                makePayment(privateKey,apiKey,data, data.external == "true"?true:false)
+                            }else{
+                                if(localStorage.getItem("invoicePayment") != data.invoice){
+                                    localStorage.removeItem("invoicePayment");
+                                    localStorage.setItem("invoicePayment", data.invoice);
+                                    makePayment(privateKey,apiKey,data, data.external == "true"?true:false)
+                                }else{
+                                    makePayment(privateKey,apiKey,data, data.external == "true"?true:false)
+                                }
+                            }
+                        }
+                        var makePayment = function (privatekey, apikey, info, external) {
+                            const headers = { "Content-Type": "application/json" } ;
+                            headers["privatekey"] = privatekey;
+                            headers["apikey"] = apikey;
+                            var payment =   function (){
+                                return  fetch("https://cms.epayco.io/checkout/payment/session", {
+                                    method: "POST",
+                                    body: JSON.stringify(info),
+                                    headers
+                                })
+                                .then(res =>  res.json())
+                                .catch(err => err);
+                            }
+                            payment()
+                                .then(session => {
+                                    if(session.data.sessionId != undefined){
+                                        localStorage.removeItem("sessionPayment");
+                                        localStorage.setItem("sessionPayment", session.data.sessionId);
+                                        const handlerNew = window.ePayco.checkout.configure({
+                                            sessionId: session.data.sessionId,
+                                            external: external,
+                                        });
+                                        handlerNew.openNew()
+                                    }
+                                })
+                                .catch(error => {
+                                    error.message;
+                                });
+                        }
+                        openChekout()
                     </script>
                     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
                     <script>
-                        handler.open(data)
+                        //handler.open(data)
                         window.onload = function() {
                             document.addEventListener("contextmenu", function(e){
                                 e.preventDefault();
@@ -248,12 +302,12 @@ if (defined('PAYMENT_NOTIFICATION')) {
                         });
                     </script>
                 </form>
-                
             </center>
             ',$data['key']
             ,$data['test'], $data['description'],$data['description'],$data['order_id'],$data['currency'],$data['total'], $data["tax"],
         $data["sub_total"], $order_info["b_country"], $type_checkout_mode, $data['p_url_response'], $data['p_url_confirmation'],"es",$data['order_id'],
-        $order_info['email'], $data['billAddress'], $data['payerPhone'],$data['p_cust_id_cliente'],$data['p_cust_id_cliente'],$data['p_cust_id_cliente']
+        $order_info['email'], $data['billAddress'], $data['payerPhone'],$data['test'],$data['p_cust_id_cliente'],$data['p_cust_id_cliente'],$data['p_cust_id_cliente'],$data['ip'],
+        $data['key'],$data['privateKey']
     );
     exit;
 }

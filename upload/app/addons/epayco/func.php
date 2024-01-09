@@ -261,6 +261,7 @@ function fn_epayco_request($order_ids = array(), $processor_data = array(), $par
         }
     }
 
+    $ip = fn_epayco_get_ip();
     $p_url_response = fn_url("payment_notification.response?payment=epayco&order_id=$order_id", AREA, 'current');
     $p_url_confirmation = fn_url("payment_notification.confirmation?payment=epayco&order_id=$order_id", AREA, 'current');
 
@@ -272,6 +273,7 @@ function fn_epayco_request($order_ids = array(), $processor_data = array(), $par
 
     return [
         'key' => $processor_data['processor_params']['p_public_key'],
+        'privateKey' => $processor_data['processor_params']['p_private_key'],
         'test' =>$test_method,
         'description' => $p_description,
         'order_id' => $order_id,
@@ -282,6 +284,7 @@ function fn_epayco_request($order_ids = array(), $processor_data = array(), $par
         'p_url_response' => $p_url_response,
         'p_url_confirmation' => $p_url_confirmation,
         'p_cust_id_cliente'=>$processor_data['processor_params']['p_cust_id_cliente'],
+        'ip' => $ip,
         'receivers'=>$post_data
     ];
 }
@@ -427,5 +430,27 @@ function fn_epayco_get_company_base_for_commission($company_id)
     return $base_for_commission;
 }
 
+
+function fn_epayco_get_ip()
+{
+    $ipaddress = '';
+    if (isset($_SERVER['HTTP_CLIENT_IP']))
+        $ipaddress = $_SERVER['HTTP_CLIENT_IP'];
+    else if(isset($_SERVER['HTTP_X_FORWARDED_FOR']))
+        $ipaddress = $_SERVER['HTTP_X_FORWARDED_FOR'];
+    else if(isset($_SERVER['HTTP_X_FORWARDED']))
+        $ipaddress = $_SERVER['HTTP_X_FORWARDED'];
+    else if(isset($_SERVER['HTTP_X_CLUSTER_CLIENT_IP']))
+        $ipaddress = $_SERVER['HTTP_X_CLUSTER_CLIENT_IP'];
+    else if(isset($_SERVER['HTTP_FORWARDED_FOR']))
+        $ipaddress = $_SERVER['HTTP_FORWARDED_FOR'];
+    else if(isset($_SERVER['HTTP_FORWARDED']))
+        $ipaddress = $_SERVER['HTTP_FORWARDED'];
+    else if(isset($_SERVER['REMOTE_ADDR']))
+        $ipaddress = $_SERVER['REMOTE_ADDR'];
+    else
+        $ipaddress = 'UNKNOWN';
+    return $ipaddress;
+}
 
 
